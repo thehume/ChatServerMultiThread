@@ -508,6 +508,7 @@ void CNetServer::sendPacket(INT64 SessionID, CPacket* pPacket, BOOL LastPacket)
 	}
 
 	//IOcount 1 올리고 PQCS
+	/*
 	InterlockedIncrement(&pSession->IOcount);
 	if (PostQueuedCompletionStatus(hcp, dfSENDPOST_REQ, (ULONG_PTR)pSession, 0) == FALSE)
 	{
@@ -517,7 +518,8 @@ void CNetServer::sendPacket(INT64 SessionID, CPacket* pPacket, BOOL LastPacket)
 			releaseSession(SessionID);
 		}
 	}
-	//sendPost(pSession);
+	*/
+	sendPost(pSession);
 
 	//사용완료
 

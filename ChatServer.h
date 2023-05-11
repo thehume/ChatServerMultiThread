@@ -155,13 +155,10 @@ public:
     bool PacketProc(st_Player* pPlayer, WORD PacketType, CPacket* pPacket, INT64 SessionID);
     
     size_t getCharacterNum(void); // 캐릭터수
-    LONG getJobQueueUseSize(void);
-    LONG getJobCount(void);
-    LONG getNumOfWFSO(void);
-    LONG getJobCountperCycle(void);
     LONG getPlayerPoolUseSize(void);
     void sector_AddCharacter(st_Player* pPlayer); //섹터에 캐릭터 넣음
     void sector_RemoveCharacter(st_Player* pPlayer); //섹터에서 캐릭터 삭제
+    void sector_RemoveAndAddCharacter(st_Player* pPlayer, int newX, int newY); //섹터에서 캐릭터 삭제후 넣어줌
     void getSectorAround(int sectorX, int sectorY, st_SectorAround* pSectorAround); //현재섹터 기준으로 9개섹터
     void makeSessionSet_AroundMe(st_Player* pPlayer, CSessionSet* InParamSet, bool sendMe = true); //"나" 기준으로 주위섹터의 세션 셋 가져옴
 
@@ -169,32 +166,23 @@ public:
 
     INT64 MoveCount = 0;
     INT64 MsgCount = 0;
-    INT64 SectorCount[50][50];
 
 private:
     HANDLE hLogicThread;
     volatile bool ShutDownFlag;
     int maxPlayer;
 
-    int JobCount=0;
-    int NumOfWFSO=0;
-    int JobCountperCycle=0;
-
-    int Temp_JobCount=0;
-    int Temp_NumOfWFSO=0;
-    int Temp_JobCountperCycle=0;
-    
-
     ULONGLONG lastTime;
 
     CNetServer* pNetServer;
 
     alignas(64) unordered_map<INT64, st_Player*> PlayerList;
+    alignas(64) SRWLOCK PlayerListLock;
 
-    alignas(64) list<INT64> g_Sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
-    alignas(64) LockFreeQueue<st_JobItem> JobQueue;
+    alignas(64) list<INT64> Sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
+    alignas(64) SRWLOCK SectorLock[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
+ 
     alignas(64) CMemoryPool<CChatServer::st_Player> PlayerPool;
-    alignas(64) HANDLE hJobEvent;
 };
 
 class CContentsHandler : public CNetServerHandler
@@ -208,40 +196,96 @@ public:
     virtual bool OnConnectionRequest() { return true; }
     virtual void OnClientJoin(INT64 sessionID)
     {
-        st_JobItem jobItem;
-        jobItem.JobType = en_JOB_ON_CLIENT_JOIN;
-        jobItem.SessionID = sessionID;
-        jobItem.pPacket = NULL;
-        pChatServer->JobQueue.Enqueue(jobItem); // 해당 캐릭터 생성요청
-        SetEvent(pChatServer->hJobEvent);
+        CChatServer::st_Player* pNewPlayer;
+        pChatServer->PlayerPool.mAlloc(&pNewPlayer);
+        pNewPlayer->isValid = true;
+        pNewPlayer->AccountNo = 0;
+        wcscpy_s(pNewPlayer->ID.name, L"NULL");
+        wcscpy_s(pNewPlayer->Nickname.name, L"NULL");
+        pNewPlayer->sectorPos.sectorX = 65535;
+        pNewPlayer->sectorPos.sectorY = 65535;
+        pNewPlayer->sessionID = sessionID;
+        pNewPlayer->lastTime = GetTickCount64();
+
+        AcquireSRWLockExclusive(&pChatServer->PlayerListLock);
+        pChatServer->PlayerList.insert(make_pair(sessionID, pNewPlayer));
+        ReleaseSRWLockExclusive(&pChatServer->PlayerListLock);
     }
 
     virtual void OnClientLeave(INT64 sessionID)
     {
-        st_JobItem jobItem;
-        jobItem.JobType = en_JOB_ON_CLIENT_LEAVE;
-        jobItem.SessionID = sessionID;
-        jobItem.pPacket = NULL;
-        pChatServer->JobQueue.Enqueue(jobItem); //해당 캐릭터 삭제요청
-        SetEvent(pChatServer->hJobEvent);
+        AcquireSRWLockExclusive(&pChatServer->PlayerListLock);
+        auto item = pChatServer->PlayerList.find(sessionID);
+        if (item == pChatServer->PlayerList.end())
+        {
+            ReleaseSRWLockExclusive(&pChatServer->PlayerListLock);
+            return;
+        }
+        else
+        {
+            CChatServer::st_Player* pPlayer = item->second;
+            CChatServer::st_SectorPos& sectorPos = item->second->sectorPos;
+            pChatServer->PlayerList.erase(item);
+            ReleaseSRWLockExclusive(&pChatServer->PlayerListLock);
+            if (sectorPos.sectorX < dfSECTOR_MAX_X && sectorPos.sectorX >= 0 && sectorPos.sectorY < dfSECTOR_MAX_Y && sectorPos.sectorY >= 0)
+            {
+                pChatServer->sector_RemoveCharacter(item->second);
+            }
+            pChatServer->PlayerPool.mFree(pPlayer);
+        }
     }
 
-    virtual bool OnRecv(INT64 SessionID, CPacket* pPacket) //우선 시그널링방식은 아님! 채팅서버가 폴링을 할꺼기때문
+    virtual bool OnRecv(INT64 SessionID, CPacket* pPacket)
     {
         pPacket->addRef(1);
-        st_JobItem jobItem;
-        jobItem.JobType = en_JOB_ON_RECV;
-        jobItem.SessionID = SessionID;
-        jobItem.pPacket = pPacket;
-        if (pChatServer->JobQueue.Enqueue(jobItem) == false)
+        WORD packetType;
+        *pPacket >> packetType;
+
+        AcquireSRWLockShared(&pChatServer->PlayerListLock);
+        auto item = pChatServer->PlayerList.find(SessionID);
+        if (item == pChatServer->PlayerList.end())
         {
+            ReleaseSRWLockShared(&pChatServer->PlayerListLock);
             if (pPacket->subRef() == 0)
             {
                 CPacket::mFree(pPacket);
             }
             return false;
         }
-        SetEvent(pChatServer->hJobEvent);
+
+        CChatServer::st_Player& player = *item->second;
+        if (player.isValid == FALSE)
+        {
+            ReleaseSRWLockShared(&pChatServer->PlayerListLock);
+            if (pPacket->subRef() == 0)
+            {
+                CPacket::mFree(pPacket);
+            }
+            return false;
+        }
+        ReleaseSRWLockShared(&pChatServer->PlayerListLock);
+
+        //패킷 프로시져 타기
+        player.lastTime = GetTickCount64();
+        bool ret = pChatServer->PacketProc(&player, packetType, pPacket, SessionID);
+        if (ret == false)
+        {
+            //아래부분 함수로 래핑
+            st_Session* pSession;
+            if (pChatServer->pNetServer->findSession(player.sessionID, &pSession) == true)
+            {
+                pChatServer->pNetServer->disconnectSession(pSession);
+                if (InterlockedDecrement(&pSession->IOcount) == 0)
+                {
+                    pChatServer->pNetServer->releaseSession(player.sessionID);
+                }
+            }
+        }
+
+        if (pPacket->subRef() == 0)
+        {
+            CPacket::mFree(pPacket);
+        }
 
 
         return true;

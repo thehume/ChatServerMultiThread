@@ -67,10 +67,12 @@ int main()
 		wprintf(L"Disconnect TPS : %d\n", NetServer.getDisconnectTPS());
 		wprintf(L"Send TPS : %d\n", NetServer.getSendMessageTPS());
 		wprintf(L"Recv TPS : %d\n", NetServer.getRecvMessageTPS());
+		/*
 		wprintf(L"JobQueue UseSize : %d\n", ChatServer.getJobQueueUseSize());
 		wprintf(L"Job TPS : %d\n", ChatServer.getJobCount());
 		wprintf(L"Number Of Sleep per second : %d\n", ChatServer.getNumOfWFSO());
 		wprintf(L"Job Count Per Cycle : %d\n", ChatServer.getJobCountperCycle());
+		*/
 		wprintf(L"PacketPool UseSize : %d\n", CPacket::getPoolUseSize() * POOL_BUCKET_SIZE);
 		wprintf(L"PlayerPool UseSize : %d\n", ChatServer.getPlayerPoolUseSize());
 		wprintf(L"Time Check Interval : %lld\n", ChatServer.Interval);
