@@ -175,16 +175,15 @@ bool CChatServer::packetProc_CS_CHAT_REQ_SECTOR_MOVE(st_Player* pPlayer, CPacket
 		systemLog(L"WRONG SECTOR POS", dfLOG_LEVEL_DEBUG, L" X %uh:  Y : %uh", SectorX, SectorY);
 		return false;
 	}
-	
-	if (pPlayer->sectorPos.sectorX == SectorX && pPlayer->sectorPos.sectorY == SectorY)
-	{
-		systemLog(L"SECTOR POS SAME ", dfLOG_LEVEL_DEBUG, L" X %uh:  Y : %uh", SectorX, SectorY);
-		return true;
-	}
 
 	//move 메시지 로직
+	if (pPlayer->sectorPos.sectorX == SectorX && pPlayer->sectorPos.sectorY == SectorY)
+	{
+		//systemLog(L"SECTOR POS SAME ", dfLOG_LEVEL_DEBUG, L" X %uh:  Y : %uh", SectorX, SectorY);
+	}
+
 	//전체 섹터에 내가 존재하지 않았다면 들어갈 섹터에만 나를 추가함
-	if (pPlayer->sectorPos.sectorX < 0 || pPlayer->sectorPos.sectorX >= dfSECTOR_MAX_X || pPlayer->sectorPos.sectorY < 0 || pPlayer->sectorPos.sectorY >= dfSECTOR_MAX_Y)
+	else if (pPlayer->sectorPos.sectorX < 0 || pPlayer->sectorPos.sectorX >= dfSECTOR_MAX_X || pPlayer->sectorPos.sectorY < 0 || pPlayer->sectorPos.sectorY >= dfSECTOR_MAX_Y)
 	{
 		pPlayer->sectorPos.sectorX = SectorX;
 		pPlayer->sectorPos.sectorY = SectorY;
@@ -290,37 +289,36 @@ DWORD WINAPI CChatServer::LogicThread(CChatServer* pChatServer)
 {
 	while (!pChatServer->ShutDownFlag)
 	{
-		//시간 쟤서 약 1초마다 모든세션의 lastPacket 확인 -> 40초가 지났다면 그세션끊기
-		ULONGLONG curTime = GetTickCount64();
-		if (curTime - pChatServer->lastTime > 1000)
+	//시간 쟤서 모든세션의 lastPacket 확인 -> 40초가 지났다면 그세션끊기
+	ULONGLONG curTime = GetTickCount64();
+
+		pChatServer->Interval = curTime - pChatServer->lastTime;
+		pChatServer->lastTime = curTime;
+		st_Session* pSession;
+		AcquireSRWLockShared(&pChatServer->PlayerListLock);
+		for (auto iter = pChatServer->PlayerList.begin(); iter != pChatServer->PlayerList.end(); iter++)
 		{
-			pChatServer->Interval = curTime - pChatServer->lastTime;
-			pChatServer->lastTime = curTime;
-			st_Session* pSession;
-			AcquireSRWLockShared(&pChatServer->PlayerListLock);
-			for (auto iter = pChatServer->PlayerList.begin(); iter != pChatServer->PlayerList.end(); iter++)
+			st_Player& player = *iter->second;
+			if (player.isValid == FALSE)
 			{
-				st_Player& player = *iter->second;
-				if (player.isValid == FALSE)
+				continue;
+			}
+			if (curTime - player.lastTime > 40000)
+			{
+				if (pChatServer->pNetServer->findSession(player.sessionID, &pSession) == true)
 				{
-					continue;
-				}
-				if (curTime - player.lastTime > 40000)
-				{
-					if (pChatServer->pNetServer->findSession(player.sessionID, &pSession) == true)
+					systemLog(L"TimeOut", dfLOG_LEVEL_DEBUG, L"over time : %lld", curTime - player.lastTime);
+					pChatServer->pNetServer->disconnectSession(pSession);
+					if (InterlockedDecrement(&pSession->IOcount) == 0)
 					{
-						systemLog(L"TimeOut", dfLOG_LEVEL_DEBUG, L"over time : %lld", curTime - player.lastTime);
-						pChatServer->pNetServer->disconnectSession(pSession);
-						if (InterlockedDecrement(&pSession->IOcount) == 0)
-						{
-							pChatServer->pNetServer->releaseRequest(pSession);
-						}
+						pChatServer->pNetServer->releaseRequest(pSession);
 					}
 				}
 			}
-			ReleaseSRWLockShared(&pChatServer->PlayerListLock);
-		}			
-		Sleep(1000);
+		}
+		ReleaseSRWLockShared(&pChatServer->PlayerListLock);
+				
+	Sleep(10000);
 	}
 	return true;
 }
@@ -369,7 +367,12 @@ void CChatServer::sector_RemoveCharacter(st_Player* pPlayer) //섹터에서 캐�
 	short Xpos = pPlayer->sectorPos.sectorX;
 	short Ypos = pPlayer->sectorPos.sectorY;
 
-	
+	if (Xpos < 0 || Xpos >= dfSECTOR_MAX_X || Ypos<0 || Ypos >= dfSECTOR_MAX_Y)
+	{
+		return;
+	}
+
+
 	AcquireSRWLockExclusive(&SectorLock[Ypos][Xpos]);
 	list<INT64>::iterator iter = Sector[Ypos][Xpos].begin();
 	for (; iter != Sector[Ypos][Xpos].end(); )

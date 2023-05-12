@@ -32,7 +32,7 @@ using namespace std;
 CrashDump myDump;
 
 WCHAR IPaddress[20] = L"0.0.0.0";
-CInitParam initParam(IPaddress, 6000, 6, 3, true, 15000);
+CInitParam initParam(IPaddress, 6000, 4, 4, true, 15000);
 CNetServer NetServer(&initParam);
 CChatServer ChatServer;
 
