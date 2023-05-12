@@ -302,7 +302,7 @@ DWORD WINAPI CChatServer::LogicThread(CChatServer* pChatServer)
 			{
 				continue;
 			}
-			if (curTime - player.lastTime > 40000)
+			if (curTime > player.lastTime + 50000 )
 			{
 				if (pChatServer->pNetServer->findSession(player.sessionID, &pSession) == true)
 				{
