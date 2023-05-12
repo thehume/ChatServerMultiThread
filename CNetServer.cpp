@@ -353,7 +353,7 @@ bool CNetServer::findSession(INT64 SessionID, st_Session** ppSession)
 	{
 		if (InterlockedDecrement(&pSession->IOcount) == 0)
 		{
-			releaseSession(SessionID);
+			releaseRequest(pSession);
 		}
 		return false;
 	}
@@ -362,7 +362,7 @@ bool CNetServer::findSession(INT64 SessionID, st_Session** ppSession)
 	{
 		if (InterlockedDecrement(&pSession->IOcount) == 0)
 		{
-			releaseSession(SessionID);
+			releaseRequest(pSession);
 		}
 		return false;
 	}
@@ -461,6 +461,11 @@ void CNetServer::releaseSession(INT64 SessionID)
 	emptyIndexStack.push(index);
 }
 
+void CNetServer::releaseRequest(st_Session* pSession)
+{
+	PostQueuedCompletionStatus(hcp, dfRELEASE_REQ, (ULONG_PTR)pSession, 0);
+}
+
 void CNetServer::sendPacket(INT64 SessionID, CPacket* pPacket, BOOL LastPacket)
 {
 	st_Session* pSession;
@@ -473,7 +478,7 @@ void CNetServer::sendPacket(INT64 SessionID, CPacket* pPacket, BOOL LastPacket)
 	{
 		if (InterlockedDecrement(&pSession->IOcount) == 0)
 		{
-			releaseSession(SessionID);
+			releaseRequest(pSession);
 		}
 		return;
 	}
@@ -497,7 +502,7 @@ void CNetServer::sendPacket(INT64 SessionID, CPacket* pPacket, BOOL LastPacket)
 		disconnectSession(pSession);
 		if (InterlockedDecrement(&pSession->IOcount) == 0)
 		{
-			releaseSession(SessionID);
+			releaseRequest(pSession);
 		}
 		return;
 	}
@@ -525,7 +530,7 @@ void CNetServer::sendPacket(INT64 SessionID, CPacket* pPacket, BOOL LastPacket)
 
 	if (InterlockedDecrement(&pSession->IOcount) == 0)
 	{
-		releaseSession(SessionID);
+		releaseRequest(pSession);
 	}
 	return;
 }
@@ -749,6 +754,13 @@ DWORD WINAPI CNetServer::WorkerThread(CNetServer* ptr)
 			if (transferred == dfSENDPOST_REQ && pOverlapped == 0)
 			{
 				ptr->sendPost(pSession);
+			}
+
+			//release 요청시
+			else if (transferred == dfRELEASE_REQ && pOverlapped == 0)
+			{
+				ptr->releaseSession(pSession->sessionID);
+				continue;
 			}
 
 			//recv일시

@@ -313,7 +313,7 @@ DWORD WINAPI CChatServer::LogicThread(CChatServer* pChatServer)
 						pChatServer->pNetServer->disconnectSession(pSession);
 						if (InterlockedDecrement(&pSession->IOcount) == 0)
 						{
-							pChatServer->pNetServer->releaseSession(player.sessionID);
+							pChatServer->pNetServer->releaseRequest(pSession);
 						}
 					}
 				}

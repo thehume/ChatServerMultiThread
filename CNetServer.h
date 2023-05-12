@@ -15,6 +15,7 @@
 #define SESSION_DISCONNECT 3
 
 #define dfSENDPOST_REQ 0xFFFF
+#define dfRELEASE_REQ 0x00FF
 
 struct st_MyOverlapped
 {
@@ -108,6 +109,7 @@ public:
 	void sendPacket(INT64 SessionID, CPacket* packet, BOOL LastPacket = FALSE);
 	void sendPacket(CSessionSet* pSessionSet, CPacket* pPacket, BOOL LastPacket = FALSE);
 	void releaseSession(INT64 SessionID);
+	void releaseRequest(st_Session* pSession);
 
 	int getMaxSession();
 	INT64 getAcceptSum();

@@ -176,10 +176,10 @@ private:
 
     CNetServer* pNetServer;
 
-    alignas(64) unordered_map<INT64, st_Player*> PlayerList;
-    alignas(64) SRWLOCK PlayerListLock;
+    unordered_map<INT64, st_Player*> PlayerList;
+    list<INT64> Sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
 
-    alignas(64) list<INT64> Sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
+    alignas(64) SRWLOCK PlayerListLock;
     alignas(64) SRWLOCK SectorLock[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
  
     alignas(64) CMemoryPool<CChatServer::st_Player> PlayerPool;
