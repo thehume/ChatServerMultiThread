@@ -290,12 +290,11 @@ DWORD WINAPI CChatServer::LogicThread(CChatServer* pChatServer)
 	while (!pChatServer->ShutDownFlag)
 	{
 	//시간 쟤서 모든세션의 lastPacket 확인 -> 40초가 지났다면 그세션끊기
-	ULONGLONG curTime = GetTickCount64();
-
+		AcquireSRWLockShared(&pChatServer->PlayerListLock);
+		ULONGLONG curTime = GetTickCount64();
 		pChatServer->Interval = curTime - pChatServer->lastTime;
 		pChatServer->lastTime = curTime;
 		st_Session* pSession;
-		AcquireSRWLockShared(&pChatServer->PlayerListLock);
 		for (auto iter = pChatServer->PlayerList.begin(); iter != pChatServer->PlayerList.end(); iter++)
 		{
 			st_Player& player = *iter->second;
