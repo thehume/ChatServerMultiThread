@@ -43,6 +43,7 @@ CProcessMonitor Process_Monitor(GetCurrentProcess());
 int main()
 {
 	logInit();
+	PRO_INIT();
 
 	CContentsHandler HandleInstance;
 	HandleInstance.attachServerInstance(&NetServer, &ChatServer);
@@ -52,9 +53,11 @@ int main()
 
 	ChatServer.Start();
 	NetServer.Start();
-	int i = 10;
+	int i = 600;
 
-	while (1)
+	ULONGLONG startTime = GetTickCount64();
+
+	while (i>0)
 	{
 		Hardware_Monitor.Update();
 		Process_Monitor.Update();
@@ -95,11 +98,19 @@ int main()
 		wprintf(L"MsgCount : %lld\n", ChatServer.MsgCount);
 		wprintf(L"======================\n");
 		Sleep(1000);
-		//i--;
+		i--;
 	}
+
+	ULONGLONG lastTime = GetTickCount64();
+
+	ULONGLONG totalTime = (lastTime - startTime) / 1000;
+	INT64 tpsAVG = NetServer.getTotalTPS();
+	systemLog(L"total TPS", dfLOG_LEVEL_DEBUG, L"TPS AVG : %lld", tpsAVG);
 
 	ChatServer.Stop();
 	NetServer.Stop();
+
+	PRO_LOG();
 
 
 	return 0;

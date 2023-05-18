@@ -1,6 +1,6 @@
 #pragma once
 
-#define PROFILE
+//#define PROFILE
 
 #ifdef PROFILE
 #define PRO_BEGIN(TagName)	ProfileBegin(TagName)

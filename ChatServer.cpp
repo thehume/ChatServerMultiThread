@@ -43,6 +43,7 @@ CChatServer::CChatServer()
 
 void CChatServer::CS_CHAT_RES_LOGIN(INT64 SessionID, BYTE Status, INT64 AccountNo)
 {
+	//CProfiler("CS_CHAT_RES_LOGIN");
 	WORD Type = en_PACKET_CS_CHAT_RES_LOGIN;
 
 	CPacket* pPacket = CPacket::mAlloc();
@@ -59,8 +60,10 @@ void CChatServer::CS_CHAT_RES_LOGIN(INT64 SessionID, BYTE Status, INT64 AccountN
 		CPacket::mFree(pPacket);
 	}
 }
+
 void CChatServer::CS_CHAT_RES_SECTOR_MOVE(INT64 SessionID, INT64 AccountNo, WORD SectorX, WORD SectorY)
 {
+	//CProfiler("CS_CHAT_RES_SECTOR_MOVE");
 	WORD Type = en_PACKET_CS_CHAT_RES_SECTOR_MOVE;
 
 	CPacket* pPacket = CPacket::mAlloc();
@@ -82,6 +85,7 @@ void CChatServer::CS_CHAT_RES_SECTOR_MOVE(INT64 SessionID, INT64 AccountNo, WORD
 
 void CChatServer::CS_CHAT_RES_MESSAGE(CSessionSet* SessionSet, INT64 AccountNo, st_UserName ID, st_UserName Nickname, WORD MessageLen, st_Message& Message)
 {
+	//CProfiler("CS_CHAT_RES_MESSAGE");
 	WORD Type = en_PACKET_CS_CHAT_RES_MESSAGE;
 
 	CPacket* pPacket = CPacket::mAlloc();
@@ -112,6 +116,7 @@ void CChatServer::CS_CHAT_RES_MESSAGE(CSessionSet* SessionSet, INT64 AccountNo, 
 
 bool CChatServer::packetProc_CS_CHAT_REQ_LOGIN(st_Player* pPlayer, CPacket* pPacket, INT64 SessionID)
 {
+	//CProfiler("PP_REQ_LOGIN");
 	//------------------------------------------------------------
 	// 채팅서버 로그인 요청
 	//
@@ -143,6 +148,7 @@ bool CChatServer::packetProc_CS_CHAT_REQ_LOGIN(st_Player* pPlayer, CPacket* pPac
 }
 bool CChatServer::packetProc_CS_CHAT_REQ_SECTOR_MOVE(st_Player* pPlayer, CPacket* pPacket, INT64 SessionID)
 {
+	//CProfiler("PP_REQ_SECTOR_MOVE");
 	//------------------------------------------------------------
 	// 채팅서버 섹터 이동 요청
 	//
@@ -204,6 +210,7 @@ bool CChatServer::packetProc_CS_CHAT_REQ_SECTOR_MOVE(st_Player* pPlayer, CPacket
 
 bool CChatServer::packetProc_CS_CHAT_REQ_MESSAGE(st_Player* pPlayer, CPacket* pPacket, INT64 SessionID)
 {
+	//CProfiler("PP_REQ_MESSAGE");
 	//------------------------------------------------------------
 	// 채팅서버 채팅보내기 요청
 	//
@@ -242,6 +249,7 @@ bool CChatServer::packetProc_CS_CHAT_REQ_MESSAGE(st_Player* pPlayer, CPacket* pP
 }
 bool CChatServer::packetProc_CS_CHAT_REQ_HEARTBEAT(st_Player* pPlayer, CPacket* pPacket, INT64 SessionID)
 {
+	//CProfiler("PP_REQ_HEARTBEAT");
 	//------------------------------------------------------------
 	// 하트비트
 	//
@@ -354,6 +362,7 @@ LONG CChatServer::getPlayerPoolUseSize(void)
 
 void CChatServer::sector_AddCharacter(st_Player* pPlayer) //섹터에 캐릭터 넣음
 {
+	//CProfiler("sector_AddCharacter");
 	short Xpos = pPlayer->sectorPos.sectorX;
 	short Ypos = pPlayer->sectorPos.sectorY;
 	AcquireSRWLockExclusive(&SectorLock[Ypos][Xpos]);
@@ -363,6 +372,7 @@ void CChatServer::sector_AddCharacter(st_Player* pPlayer) //섹터에 캐릭터 
 
 void CChatServer::sector_RemoveCharacter(st_Player* pPlayer) //섹터에서 캐릭터 삭제
 {
+	//CProfiler("sector_RemoveCharac");
 	short Xpos = pPlayer->sectorPos.sectorX;
 	short Ypos = pPlayer->sectorPos.sectorY;
 
@@ -392,6 +402,7 @@ void CChatServer::sector_RemoveCharacter(st_Player* pPlayer) //섹터에서 캐�
 
 void CChatServer::sector_RemoveAndAddCharacter(st_Player* pPlayer, int newX, int newY)
 {
+	//CProfiler("sector_RemoveAndAdd");
 	int oldX, oldY;
 	oldX = pPlayer->sectorPos.sectorX;
 	oldY = pPlayer->sectorPos.sectorY;
@@ -446,6 +457,7 @@ void CChatServer::sector_RemoveAndAddCharacter(st_Player* pPlayer, int newX, int
 
 void CChatServer::getSectorAround(int sectorX, int sectorY, st_SectorAround* pSectorAround)
 {
+	//CProfiler("getSectorAround");
 	int Xoffset, Yoffset;
 
 	sectorX--;
@@ -474,6 +486,7 @@ void CChatServer::getSectorAround(int sectorX, int sectorY, st_SectorAround* pSe
 
 void CChatServer::makeSessionSet_AroundMe(st_Player* pPlayer, CSessionSet* InParamSet, bool sendMe)
 {
+	//CProfiler("makeSessionSet_AroundMe");
 	st_SectorAround AroundMe;
 	int sectorX, sectorY;
 	getSectorAround(pPlayer->sectorPos.sectorX, pPlayer->sectorPos.sectorY, &AroundMe);

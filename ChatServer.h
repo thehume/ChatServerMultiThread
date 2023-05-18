@@ -196,6 +196,7 @@ public:
     virtual bool OnConnectionRequest() { return true; }
     virtual void OnClientJoin(INT64 sessionID)
     {
+        CProfiler("OnClientJoin");
         CChatServer::st_Player* pNewPlayer;
         pChatServer->PlayerPool.mAlloc(&pNewPlayer);
         pNewPlayer->isValid = true;
@@ -214,6 +215,7 @@ public:
 
     virtual void OnClientLeave(INT64 sessionID)
     {
+        CProfiler("OnClientLeave");
         AcquireSRWLockExclusive(&pChatServer->PlayerListLock);
         auto item = pChatServer->PlayerList.find(sessionID);
         if (item == pChatServer->PlayerList.end())
@@ -237,6 +239,7 @@ public:
 
     virtual bool OnRecv(INT64 SessionID, CPacket* pPacket)
     {
+        CProfiler("OnRecv");
         pPacket->addRef(1);
         WORD packetType;
         *pPacket >> packetType;
